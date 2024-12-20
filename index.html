@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="tracking">
+      <h1>Track Your Order</h1>
+      <input type="text" id="waybill" placeholder="Enter Waybill Number" />
+      <button id="trackBtn">Track</button>
+      <div id="result"></div>
+    </div>
+
+    <script>
+      document
+        .getElementById("trackBtn")
+        .addEventListener("click", async () => {
+          const waybill = document.getElementById("waybill").value;
+
+          if (!waybill) {
+            alert("Please enter a waybill number");
+            return;
+          }
+
+          try {
+            const response = await fetch(
+              "https://well-ark-statusfetching.onrender.com/track",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ waybill }), // Send waybill in POST body
+              }
+            );
+
+            if (!response.ok) {
+              throw new Error("Failed to fetch tracking details");
+            }
+
+            const data = await response.json();
+
+            const shipment = data.ShipmentData[0]?.Shipment;
+
+            if (!shipment) {
+              document.getElementById("result").textContent =
+                "No shipment data found.";
+              return;
+            }
+
+            const {
+              Status,
+              Consignee,
+              PickupLocation,
+              Destination,
+              ExpectedDeliveryDate,
+              Scans,
+            } = shipment;
+
+            // Build HTML for the result
+            const resultHTML = `
+                <h2>Tracking Details</h2>
+                <h3>Current Status</h3>
+                <p><strong>Status:</strong> ${Status.Status}</p>
+                <p><strong>Location:</strong> ${Status.StatusLocation}</p>
+                <p><strong>Last Updated:</strong> ${new Date(
+                  Status.StatusDateTime
+                ).toLocaleString()}</p>
+                <p><strong>Instructions:</strong> ${Status.Instructions}</p>
+        
+                <h3>Consignee Information</h3>
+                <p><strong>Name:</strong> ${Consignee.Name}</p>
+                <p><strong>City:</strong> ${Consignee.City}</p>
+                <p><strong>State:</strong> ${Consignee.State}</p>
+                <p><strong>Pincode:</strong> ${Consignee.PinCode}</p>
+        
+                <h3>Shipment Information</h3>
+                <p><strong>Pick-Up Location:</strong> ${PickupLocation}</p>
+                <p><strong>Destination:</strong> ${Destination}</p>
+                <p><strong>Expected Delivery Date:</strong> ${new Date(
+                  ExpectedDeliveryDate
+                ).toLocaleDateString()}</p>
+        
+                <h3>Scan History</h3>
+                <ul>
+                  ${Scans.map(
+                    (scan) => `
+                    <li>
+                      <p><strong>Date:</strong> ${new Date(
+                        scan.ScanDetail.ScanDateTime
+                      ).toLocaleString()}</p>
+                      <p><strong>Status:</strong> ${scan.ScanDetail.Scan}</p>
+                      <p><strong>Location:</strong> ${
+                        scan.ScanDetail.ScannedLocation
+                      }</p>
+                      <p><strong>Instructions:</strong> ${
+                        scan.ScanDetail.Instructions
+                      }</p>
+                    </li>
+                  `
+                  ).join("")}
+                </ul>
+              `;
+
+            document.getElementById("result").innerHTML = resultHTML;
+          } catch (error) {
+            console.error("Error:", error.message);
+            document.getElementById("result").textContent =
+              "Error fetching tracking details";
+          }
+        });
+    </script>
+  </body>
+</html>
